@@ -15,7 +15,7 @@ nsMoonshotSessionState::~nsMoonshotSessionState()
 	gss_delete_sec_context(&min_stat, &gss_ctx, GSS_C_NO_BUFFER);
 
     if (gss_cred != GSS_C_NO_CREDENTIAL)
-	gss_release_cred(&min_stat, &gss_ctx);
+	gss_release_cred(&min_stat, &gss_cred);
 
     gss_ctx = GSS_C_NO_CONTEXT;
     gss_cred = GSS_C_NO_CREDENTIAL;
