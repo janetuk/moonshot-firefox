@@ -70,7 +70,7 @@ CPPSRCS		= \
 EXTRA_DSO_LDOPTS = \
 		$(MOZ_COMPONENT_LIBS) \
 		-lgssapi_krb5 \
-		-lxpcomglue_s \
+#		-lxpcomglue_s \
 		$(NULL)
 
 # XXX:
