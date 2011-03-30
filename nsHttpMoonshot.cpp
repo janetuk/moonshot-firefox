@@ -58,6 +58,7 @@
 #include <ctype.h>
 
 
+#include "nsMoonshotSessionState.h"
 #include "nsHttpMoonshot.h"
 
 /* #define HAVE_GSS_C_NT_HOSTBASED_SERVICE 1 */
@@ -123,90 +124,15 @@ parse_oid(char *mechanism, gss_OID * oid)
         free(mechstr);
 }
 
-class nsMoonshotSessionState : public nsISupports
+gss_OID
+GetOID()
 {
-public:
-    NS_DECL_ISUPPORTS
+    gss_OID mech_oid;
 
-    nsMoonshotSessionState();
-
-    virtual ~nsMoonshotSessionState() {
-	OM_uint32 minor_status;
-	if (mCtx != GSS_C_NO_CONTEXT)
-		(void)gss_delete_sec_context(&minor_status, &mCtx, GSS_C_NO_BUFFER);
-	mCtx = GSS_C_NO_CONTEXT;
-	mech_oid = GSS_C_NO_OID;
-    }
-
-    NS_IMETHOD Reset() {
-	OM_uint32 minor_status;
-	if (mCtx != GSS_C_NO_CONTEXT)
-		(void)gss_delete_sec_context(&minor_status, &mCtx, GSS_C_NO_BUFFER);
-	mCtx = GSS_C_NO_CONTEXT;
-	context_state = 0;
-	return NS_OK;
-     }
-     gss_OID GetOID() { return (mech_oid); }
-
-  // TEST
-     int GetCount() { return ++count; }
-
-     gss_ctx_id_t mCtx;
-     int context_state;
-private:
-     gss_OID mech_oid;
-     int count;
-};
-
-nsMoonshotSessionState::nsMoonshotSessionState()
-{
-	OM_uint32 minstat, majstat;
-	//gss_buffer_desc buffer;
-	gss_OID_set mech_set;
-	//int mech_found = 0;
-	unsigned int i;
-	gss_OID item;
-	
-
-	mCtx = GSS_C_NO_CONTEXT;
-	mech_oid = &gss_krb5_mech_oid_desc;
-	context_state = 0;
-
-        //
-        // Now, look at the list of supported mechanisms,
-        // if SPNEGO is found, then use it.
-        // Otherwise, set the desired mechanism to krb5
-        //
-        // Using Kerberos directly (instead of negotiating
-        // with SPNEGO) may work in some cases depending
-        // on how smart the server side is.
-        //
-
-	// TEST
-	count = 0;
-	LOG(("nsMoonshotSessionState::nsMoonshotSessionState [count=%d]\n", count));
-
-	majstat = gss_indicate_mechs(&minstat, &mech_set);
-	if (GSS_ERROR(majstat))
-	   return;
-
-	for (i=0; i<mech_set->count; i++) {
-	   item = &mech_set->elements[i];
-	   if (item->length == gss_spnego_mech_oid_desc.length &&
-		!memcmp(item->elements, gss_spnego_mech_oid_desc.elements,
-		        item->length)) {
-	      mech_oid = &gss_spnego_mech_oid_desc;
-	      break;
-	   }
-	}
-	(void) gss_release_oid_set(&minstat, &mech_set);
-/* HACK: */
-	parse_oid("{1 3 6 1 4 1 5322 22 1 18}", &mech_oid);
+    parse_oid("{1 3 6 1 4 1 5322 22 1 18}", &mech_oid);
+    return mech_oid;
 }
 
-NS_IMPL_ISUPPORTS0(nsMoonshotSessionState)
-
-#if 1
 nsHttpMoonshot::nsHttpMoonshot()
 {
    NS_INIT_ISUPPORTS();
@@ -217,34 +143,18 @@ nsHttpMoonshot::nsHttpMoonshot()
 #endif /* PR_LOGGING */
 
 }
-#endif
 
-#if 1
 nsHttpMoonshot::~nsHttpMoonshot()
 {
 }
-#endif
 
 NS_IMETHODIMP
 nsHttpMoonshot::GetAuthFlags(PRUint32 *flags)
 {
-  //
-  // GSSAPI creds should not be reused across multiple requests.
-  // Only perform the negotiation when it is explicitly requested
-  // by the server.  Thus, do *NOT* use the "REUSABLE_CREDENTIALS"
-  // flag here.
-  //
   *flags = REQUEST_BASED; 
   return NS_OK;
 }
 
-//
-// Always set *identityInvalid == FALSE here.  This 
-// will prevent the browser from popping up the authentication
-// prompt window.  Because GSSAPI does not have an API
-// for fetching initial credentials (ex: A Kerberos TGT),
-// there is no correct way to get the users credentials.
-// 
 NS_IMETHODIMP
 nsHttpMoonshot::ChallengeReceived(nsIHttpChannel *httpChannel,
                                    const char *challenge,
@@ -255,7 +165,6 @@ nsHttpMoonshot::ChallengeReceived(nsIHttpChannel *httpChannel,
 {
     nsMoonshotSessionState *session = (nsMoonshotSessionState *) *sessionState;
 
-    *identityInvalid = PR_FALSE;
     //
     // Use this opportunity to instantiate the session object
     // that gets used later when we generate the credentials.
@@ -265,9 +174,11 @@ nsHttpMoonshot::ChallengeReceived(nsIHttpChannel *httpChannel,
 	if (!session)
 		return(NS_ERROR_OUT_OF_MEMORY);
 	NS_ADDREF(*sessionState = session);
+	*identityInvalid = PR_TRUE;
 	LOG(("nsHttpMoonshot::A new session context established\n"));
     } else {
-      LOG(("nsHttpMoonshot::Still using context from previous request [ctx=%p]\n", session->mCtx));
+	LOG(("nsHttpMoonshot::Still using context from previous request\n"));
+        *identityInvalid = PR_FALSE;
     }
 
     return NS_OK;
@@ -394,7 +305,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
        service.get()));
 
   // TEST
-   LOG(("nsHttpMoonshot::Count [count=%d]\n", session->GetCount()));
+//   LOG(("nsHttpMoonshot::Count [count=%d]\n", session->GetCount()));
 
    //
    // The correct service name for IIS servers is "HTTP/f.q.d.n", so
@@ -516,7 +427,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
             return NS_ERROR_FAILURE;
 	}
 
-	mechs.elements = session->GetOID();
+	mechs.elements = GetOID();
 	mechs.count = 1;
 	mechsp = &mechs;
 
@@ -535,9 +446,9 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 
    major_status = gss_init_sec_context(&minor_status,
 				    cred,
-				    &session->mCtx,
+				    &session->gss_ctx,
 				    server,
-				    session->GetOID(),
+				    GetOID(),
 				    GSS_C_MUTUAL_FLAG,
 				    /* GSS_C_INDEFINITE */ 0,
 				    GSS_C_NO_CHANNEL_BINDINGS,
@@ -563,7 +474,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 	//
 	// TEST
 	// session->Reset();
-	session->context_state = 2;
+	session->gss_state = GSS_CTX_ESTABLISHED;
 	LOG(("GSS Auth done"));
    } else if (major_status == GSS_S_CONTINUE_NEEDED) {
 	//
@@ -575,7 +486,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 	// next call.
 	//
 	// TEST
-	session->context_state = 1;
+	session->gss_state = GSS_CTX_IN_PROGRESS;
 	LOG(("GSS Auth continuing"));
    } 
 
@@ -628,12 +539,3 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 
    return NS_OK;
 }
-
-#if 0
-static NS_METHOD
-nsMoonshotConstructor(nsISupports *outer, REFNSIID iid, void **result)
-{
-    if (outer)
-	return NS_ERROR_NO_AGGREGATION;
-}
-#endif
