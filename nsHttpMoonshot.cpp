@@ -280,7 +280,6 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    gss_buffer_t  in_token_ptr = GSS_C_NO_BUFFER;
    gss_name_t server;
    nsMoonshotSessionState *session = (nsMoonshotSessionState *) *sessionState;
-   gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
 
 
    nsCOMPtr<nsIURI> uri;
@@ -408,14 +407,18 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
         //}
    }
 
-   /* HACK */
+   if (session->gss_cred == GSS_C_NO_CREDENTIAL)
    {
 	OM_uint32 maj_stat, min_stat;
 	gss_buffer_desc tmp_token;
 	gss_name_t gss_username = GSS_C_NO_NAME;
 	gss_OID_set_desc mechs, *mechsp = GSS_C_NO_OID_SET;
+	const char *p, *u;
 
-	tmp_token.value = (void *) "steve@local";
+	u = strdup(NS_LossyConvertUTF16toASCII(username).get());
+	p = strdup(NS_LossyConvertUTF16toASCII(password).get());
+
+	tmp_token.value = (void *) u;
 	tmp_token.length = strlen((const char *)tmp_token.value);
 	maj_stat = gss_import_name(&min_stat, &tmp_token,
 				   GSS_C_NT_USER_NAME,
@@ -431,21 +434,24 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 	mechs.count = 1;
 	mechsp = &mechs;
 
-	tmp_token.value = (void *)"testing";
-	tmp_token.length = strlen((const char*)tmp_token.value);
+	tmp_token.value = (void *) p;
+	tmp_token.length = strlen(p);//strlen((const char*)tmp_token.value);
 	maj_stat = gss_acquire_cred_with_password(&min_stat,
 						  gss_username, &tmp_token, 0,
 						  mechsp, GSS_C_INITIATE,
-						  &cred, NULL, NULL);
+						  &session->gss_cred, NULL, NULL);
 	if (GSS_ERROR(maj_stat)) {
 	    LogGssError(maj_stat, min_stat, "gss_acquire_cred_with_password()");
 	    session->Reset();
 	    return NS_ERROR_FAILURE;
 	}
+
+	LOG(("Acquired credential for user '%s' using password '%s'\n",
+	     u, p));
    }
 
    major_status = gss_init_sec_context(&minor_status,
-				    cred,
+				    session->gss_cred,
 				    &session->gss_ctx,
 				    server,
 				    GetOID(),
@@ -461,7 +467,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    if (GSS_ERROR(major_status)) {
       LogGssError(major_status, minor_status, "gss_init_sec_context() failed");
       (void) gss_release_name(&minor_status, &server);
-      gss_release_cred(&minor_status, &cred);
+//      gss_release_cred(&minor_status, &cred);
       session->Reset();
       if (input_token.length > 0 && input_token.value != NULL)
 	      (void) gss_release_buffer(&minor_status, &input_token);
@@ -497,7 +503,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    if (output_token.length == 0) {
       LOG(("No GSS output token to send, exiting"));
       (void) gss_release_name(&minor_status, &server);
-      gss_release_cred(&minor_status, &cred);
+//      gss_release_cred(&minor_status, &cred);
       return NS_ERROR_FAILURE;
    }
 
@@ -512,7 +518,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    if (!encoded_token) {
       (void) gss_release_buffer(&minor_status, &output_token);
       (void) gss_release_name(&minor_status, &server);
-      gss_release_cred(&minor_status, &cred);
+//      gss_release_cred(&minor_status, &cred);
       return NS_ERROR_OUT_OF_MEMORY;
    }
 
@@ -524,7 +530,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
       PR_Free(encoded_token);
       (void) gss_release_buffer(&minor_status, &output_token);
       (void) gss_release_name(&minor_status, &server);
-      gss_release_cred(&minor_status, &cred);
+//      gss_release_cred(&minor_status, &cred);
       return NS_ERROR_OUT_OF_MEMORY;
    }
 
@@ -533,7 +539,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 
    (void) gss_release_buffer(&minor_status, &output_token);
    (void) gss_release_name(&minor_status, &server);
-      gss_release_cred(&minor_status, &cred);
+//      gss_release_cred(&minor_status, &cred);
 
    LOG(("returning the call"));
 
