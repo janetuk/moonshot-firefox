@@ -63,6 +63,7 @@ REQUIRES	= \
 
 CPPSRCS		= \
 		nsHttpMoonshot.cpp \
+		nsMoonshotSessionState.cpp \
 		nsHttpMoonshotModule.cpp \
 		$(NULL)
 
