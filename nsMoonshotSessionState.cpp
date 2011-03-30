@@ -1,6 +1,5 @@
 #include "nsMoonshotSessionState.h"
 
-#if 0
 nsMoonshotSessionState::nsMoonshotSessionState()
 {
     gss_ctx = GSS_C_NO_CONTEXT;
@@ -22,7 +21,6 @@ nsMoonshotSessionState::~nsMoonshotSessionState()
     gss_cred = GSS_C_NO_CREDENTIAL;
     gss_state = GSS_CTX_EMPTY;
 }
-#endif
 
 void
 nsMoonshotSessionState::Reset()
@@ -35,4 +33,4 @@ nsMoonshotSessionState::Reset()
     gss_state = GSS_CTX_EMPTY;
 }
 
-//NS_IMPL_ISUPPORTS0(nsMoonshotSessionState)
+NS_IMPL_ISUPPORTS0(nsMoonshotSessionState)
