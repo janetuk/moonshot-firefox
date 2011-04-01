@@ -31,6 +31,10 @@ nsMoonshotSessionState::Reset()
 	gss_delete_sec_context(&min_stat, &gss_ctx, GSS_C_NO_BUFFER);
     gss_ctx = GSS_C_NO_CONTEXT;
     gss_state = GSS_CTX_EMPTY;
+
+    if (gss_cred != GSS_C_NO_CREDENTIAL)
+	gss_release_cred(&min_stat, &gss_cred);
+    gss_cred = GSS_C_NO_CREDENTIAL;
 }
 
 NS_IMPL_ISUPPORTS0(nsMoonshotSessionState)

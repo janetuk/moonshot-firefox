@@ -174,12 +174,15 @@ nsHttpMoonshot::ChallengeReceived(nsIHttpChannel *httpChannel,
 	if (!session)
 		return(NS_ERROR_OUT_OF_MEMORY);
 	NS_ADDREF(*sessionState = session);
-	*identityInvalid = PR_TRUE;
 	LOG(("nsHttpMoonshot::A new session context established\n"));
     } else {
 	LOG(("nsHttpMoonshot::Still using context from previous request\n"));
-        *identityInvalid = PR_FALSE;
     }
+
+    LOG(("nsHttpMoonshot:: gss_state = %d\n", session->gss_state));
+
+    *identityInvalid =
+	(session->gss_state == GSS_CTX_EMPTY) ? PR_TRUE : PR_FALSE;
 
     return NS_OK;
 }
@@ -417,6 +420,9 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 
 	u = strdup(NS_LossyConvertUTF16toASCII(username).get());
 	p = strdup(NS_LossyConvertUTF16toASCII(password).get());
+
+	LOG(("Acquiring credentials for user '%s' using password '%s'\n",
+		                 u, p));
 
 	tmp_token.value = (void *) u;
 	tmp_token.length = strlen((const char *)tmp_token.value);
