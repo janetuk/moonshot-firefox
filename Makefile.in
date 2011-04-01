@@ -67,6 +67,10 @@ CPPSRCS		= \
 		nsHttpMoonshotModule.cpp \
 		$(NULL)
 
+XPIDLSRCS	= \
+		nsIHttpMoonshot.idl \
+		$(NULL)
+
 EXTRA_DSO_LDOPTS = \
 		$(MOZ_COMPONENT_LIBS) \
 		-lgssapi_krb5 \
