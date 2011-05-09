@@ -1,0 +1,19 @@
+Source: xul-ext-moonshot
+Section: web
+Priority: optional
+Maintainer: Sam Hartman <hartmans@debian.org>
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, xulrunner-dev, mozilla-devscripts
+Standards-Version: 3.9.1
+Homepage: http://www.project-moonshot.org/
+Vcs-Git: http://www.project-moonshot.org/git/moonshot-firefox.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/xul-ext-moonshot.git;a=summary
+
+Package: xul-ext-moonshot
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${xpi:Depends}
+Enhances: ${xpi:Enhances}
+Recommends: ${xpi:Recommends}
+Description: Moonshot authentication for web browsers
+ Project Moonshot provides next-generation federated authentication to
+ applications. This package includes support to bring Moonshot
+ authentication to web browsers such as Iceweasel or Firefox.
