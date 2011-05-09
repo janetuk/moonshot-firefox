@@ -31,6 +31,7 @@ moonshot.xpi: $(noinst_PROGRAMS) $(XPT) $(XPI_INSTALL)
 	test -d xpi ||rm -rf xpi
 	mkdir -p xpi/components 
 	cp libmoonshot.so xpi/components
+	touch xpi/chrome.manifest
 	cp $(XPI_INSTALL) xpi
 	cp $(XPT) xpi/components
 	cd xpi&&zip ../$@ -r .
