@@ -2,7 +2,7 @@ Source: xul-ext-moonshot
 Section: web
 Priority: optional
 Maintainer: Sam Hartman <hartmans@debian.org>
-Build-Depends: debhelper (>= 7.0.50~), autotools-dev, xulrunner-dev, mozilla-devscripts
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, xulrunner-dev, mozilla-devscripts, pkg-config
 Standards-Version: 3.9.1
 Homepage: http://www.project-moonshot.org/
 Vcs-Git: http://www.project-moonshot.org/git/moonshot-firefox.git
