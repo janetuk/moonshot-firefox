@@ -1,3 +1,9 @@
+xul-ext-moonshot (0.1-2) unstable; urgency=low
+
+  * Install chrome.manifest
+
+ -- Sam Hartman <hartmans@debian.org>  Mon, 09 May 2011 12:18:33 -0400
+
 xul-ext-moonshot (0.1-1) unstable; urgency=low
 
   * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
