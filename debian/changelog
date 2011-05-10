@@ -1,3 +1,9 @@
+xul-ext-moonshot (0.1-3) unstable; urgency=low
+
+  * Autoreconf for chrome.manifest to take effect
+
+ -- Sam Hartman <hartmans@debian.org>  Tue, 10 May 2011 08:41:41 -0400
+
 xul-ext-moonshot (0.1-2) unstable; urgency=low
 
   * Install chrome.manifest
