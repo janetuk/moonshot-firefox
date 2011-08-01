@@ -35,6 +35,7 @@
 #define FORCE_PR_LOG 1
 
 #include <stdlib.h>
+#include "nsAutoRef.h"
 #include "nsCOMPtr.h"
 #include "nsIHttpChannel.h"
 #include "nsIServiceManager.h"
@@ -68,6 +69,14 @@
  #include <gssapi/gssapi_generic.h> 
 #endif
 #endif
+
+NS_SPECIALIZE_TEMPLATE
+class nsAutoRefTraits<nsMoonshotSessionState> : public nsPointerRefTraits<nsMoonshotSessionState>
+{
+public:
+   static void Release(nsMoonshotSessionState *ptr) { ptr->Release(); }
+   static void AddRef(nsMoonshotSessionState *ptr) { ptr->AddRef(); }
+};
 
 static gss_OID_desc gss_krb5_mech_oid_desc =
 {9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"};
@@ -164,25 +173,10 @@ nsHttpMoonshot::ChallengeReceived(nsIHttpChannel *httpChannel,
                                    PRBool *identityInvalid)
 {
     nsMoonshotSessionState *session = (nsMoonshotSessionState *) *sessionState;
-
-    //
-    // Use this opportunity to instantiate the session object
-    // that gets used later when we generate the credentials.
-    //
-    if (!session) {
-	session = new nsMoonshotSessionState();
-	if (!session)
-		return(NS_ERROR_OUT_OF_MEMORY);
-	NS_ADDREF(*sessionState = session);
-	LOG(("nsHttpMoonshot::A new session context established\n"));
-    } else {
-	LOG(("nsHttpMoonshot::Still using context from previous request\n"));
-    }
-
-    LOG(("nsHttpMoonshot:: gss_state = %d\n", session->gss_state));
-
+    if (session==NULL)
+        session = (nsMoonshotSessionState *) *continuationState;
     *identityInvalid =
-	(session->gss_state == GSS_CTX_EMPTY) ? PR_TRUE : PR_FALSE;
+	((session==NULL) || (session->gss_state == GSS_CTX_EMPTY)) ? PR_TRUE : PR_FALSE;
 
     return NS_OK;
 }
@@ -282,8 +276,9 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
    gss_buffer_t  in_token_ptr = GSS_C_NO_BUFFER;
    gss_name_t server;
-   nsMoonshotSessionState *session = (nsMoonshotSessionState *) *sessionState;
-
+   nsCountedRef<nsMoonshotSessionState> session(static_cast<nsMoonshotSessionState *>(*sessionState));
+   if (!session)
+       session = static_cast<nsMoonshotSessionState *>(*continuationState);
 
    nsCOMPtr<nsIURI> uri;
    nsresult rv;
@@ -340,6 +335,16 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    if (GSS_ERROR(major_status)) {
       LogGssError(major_status, minor_status, "gss_import_name() failed");
       return NS_ERROR_FAILURE;
+   }
+
+   // Create session state if none added yet.
+   if (!session) {
+      session = new nsMoonshotSessionState();
+      if (!session)
+         return(NS_ERROR_OUT_OF_MEMORY);
+      LOG(("nsHttpMoonshot::A new session context established\n"));
+   } else {
+      LOG(("nsHttpMoonshot::Still using context from previous request\n"));
    }
 
    //
@@ -487,6 +492,13 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 	// TEST
 	// session->Reset();
 	session->gss_state = GSS_CTX_ESTABLISHED;
+      if (*sessionState != session)
+      {
+         NS_ADDREF(*sessionState = session);
+         // clean up continuation state
+         if (*continuationState)
+            NS_RELEASE(*continuationState);
+      }
 	LOG(("GSS Auth done"));
    } else if (major_status == GSS_S_CONTINUE_NEEDED) {
 	//
@@ -499,6 +511,11 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 	//
 	// TEST
 	session->gss_state = GSS_CTX_IN_PROGRESS;
+      if (*continuationState != session)
+      {
+          // Assert continuationState==NULL
+          NS_ADDREF(*continuationState = session);
+      }
 	LOG(("GSS Auth continuing"));
    } 
 
@@ -531,7 +548,7 @@ nsHttpMoonshot::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
    LOG(("Sending a token of length %d\n", output_token.length));
 
    // allocate a buffer sizeof("Negotiate" + " " + b64output_token + "\0")
-   *creds = (char *) malloc (strlen(NEGOTIATE_AUTH) + 1 + strlen(encoded_token) + 1);
+   *creds = (char *) PR_Malloc (strlen(NEGOTIATE_AUTH) + 1 + strlen(encoded_token) + 1);
    if (!(*creds)) {
       PR_Free(encoded_token);
       (void) gss_release_buffer(&minor_status, &output_token);
