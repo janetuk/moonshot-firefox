@@ -7,7 +7,7 @@
     <em:version>0.1</em:version>
     <em:creator>Michal Prochazka</em:creator>
     <em:contributor></em:contributor>
-    <em:description>Firefox extension supporting the Moonshot authenticatin framework</em:description>
+    <em:description>Firefox extension supporting the Moonshot authentication framework</em:description>
     <em:targetApplication>
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id> <!-- Firefox -->
